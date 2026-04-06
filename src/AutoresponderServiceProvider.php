@@ -46,6 +46,7 @@ class AutoresponderServiceProvider extends ServiceProvider
                 CheckTriggers::class,
                 ProcessScheduledCampaigns::class,
                 ImportTemplates::class,
+                \CmrManagement\Autoresponder\Commands\InstallUICommand::class,
             ]);
 
             $this->publishes([
