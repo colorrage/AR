@@ -63,6 +63,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Allowed Redirect Domains
+    |--------------------------------------------------------------------------
+    |
+    | Optional domain allowlist for click tracking redirects. If empty, any
+    | http/https URL is allowed. If populated, only redirects to these
+    | domains will be permitted — others fall back to app URL.
+    |
+    */
+    'allowed_redirect_domains' => env('AUTORESPONDER_ALLOWED_REDIRECT_DOMAINS', []),
+
+    /*
+    |--------------------------------------------------------------------------
     | Queue
     |--------------------------------------------------------------------------
     |
