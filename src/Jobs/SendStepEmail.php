@@ -1,16 +1,16 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Jobs;
+namespace ColorrageAR\Autoresponder\Jobs;
 
-use CmrManagement\Autoresponder\Contracts\Subscribable;
-use CmrManagement\Autoresponder\Mail\AutoresponderMail;
-use CmrManagement\Autoresponder\Models\Enrollment;
-use CmrManagement\Autoresponder\Models\SendLog;
-use CmrManagement\Autoresponder\Models\Step;
-use CmrManagement\Autoresponder\Models\StepLog;
-use CmrManagement\Autoresponder\Models\Template;
-use CmrManagement\Autoresponder\Services\AutoresponderService;
-use CmrManagement\Autoresponder\Services\TokenService;
+use ColorrageAR\Autoresponder\Contracts\Subscribable;
+use ColorrageAR\Autoresponder\Mail\AutoresponderMail;
+use ColorrageAR\Autoresponder\Models\Enrollment;
+use ColorrageAR\Autoresponder\Models\SendLog;
+use ColorrageAR\Autoresponder\Models\Step;
+use ColorrageAR\Autoresponder\Models\StepLog;
+use ColorrageAR\Autoresponder\Models\Template;
+use ColorrageAR\Autoresponder\Services\AutoresponderService;
+use ColorrageAR\Autoresponder\Services\TokenService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -19,8 +19,8 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
-use function CmrManagement\Autoresponder\ar_log;
-use function CmrManagement\Autoresponder\ar_queue;
+use function ColorrageAR\Autoresponder\ar_log;
+use function ColorrageAR\Autoresponder\ar_queue;
 
 class SendStepEmail implements ShouldQueue
 {
@@ -322,7 +322,7 @@ class SendStepEmail implements ShouldQueue
 
         return Str::markdown($content, [
             'html_input' => 'allow',
-            'allow_unsafe_links' => true,
+            'allow_unsafe_links' => false,
         ]);
     }
 

@@ -8,7 +8,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | The Eloquent model that represents your users/subscribers.
-    | Must implement CmrManagement\Autoresponder\Contracts\Subscribable.
+    | Must implement ColorrageAR\Autoresponder\Contracts\Subscribable.
     | Defaults to Laravel's User model.
     |
     */

@@ -1,12 +1,12 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Jobs;
+namespace ColorrageAR\Autoresponder\Jobs;
 
-use CmrManagement\Autoresponder\Contracts\Subscribable;
-use CmrManagement\Autoresponder\Mail\AutoresponderMail;
-use CmrManagement\Autoresponder\Models\Campaign;
-use CmrManagement\Autoresponder\Models\SendLog;
-use CmrManagement\Autoresponder\Services\TokenService;
+use ColorrageAR\Autoresponder\Contracts\Subscribable;
+use ColorrageAR\Autoresponder\Mail\AutoresponderMail;
+use ColorrageAR\Autoresponder\Models\Campaign;
+use ColorrageAR\Autoresponder\Models\SendLog;
+use ColorrageAR\Autoresponder\Services\TokenService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -15,9 +15,9 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
-use function CmrManagement\Autoresponder\ar_log;
-use function CmrManagement\Autoresponder\ar_queue;
-use function CmrManagement\Autoresponder\ar_subscriber_model;
+use function ColorrageAR\Autoresponder\ar_log;
+use function ColorrageAR\Autoresponder\ar_queue;
+use function ColorrageAR\Autoresponder\ar_subscriber_model;
 
 class SendSingleCampaignEmail implements ShouldQueue
 {
@@ -95,6 +95,8 @@ class SendSingleCampaignEmail implements ShouldQueue
                 'sent_at' => now(),
             ]);
 
+            $this->checkCampaignCompletion($campaign->id);
+
             ar_log()->info('Campaign email sent', [
                 'campaign_id' => $campaign->id,
                 'email' => $this->email,
@@ -124,9 +126,49 @@ class SendSingleCampaignEmail implements ShouldQueue
             'email' => $this->email,
             'error' => $exception->getMessage(),
         ]);
+
+        $this->checkCampaignCompletion($this->campaignId);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────
+
+    /**
+     * Check if all campaign emails have been processed and update status.
+     */
+    protected function checkCampaignCompletion(int $campaignId): void
+    {
+        $pendingCount = SendLog::where('campaign_id', $campaignId)
+            ->where('status', 'pending')
+            ->count();
+
+        if ($pendingCount === 0) {
+            $sentCount = SendLog::where('campaign_id', $campaignId)
+                ->where('status', 'sent')
+                ->count();
+
+            $failedCount = SendLog::where('campaign_id', $campaignId)
+                ->where('status', 'failed')
+                ->count();
+
+            $status = $failedCount > 0 && $sentCount === 0 ? 'failed' : 'sent';
+
+            Campaign::where('id', $campaignId)
+                ->where('status', 'sending')
+                ->update([
+                    'status' => $status,
+                    'sent_at' => now(),
+                    'sent_count' => $sentCount,
+                    'failed_count' => $failedCount,
+                ]);
+
+            ar_log()->info('Campaign completed', [
+                'campaign_id' => $campaignId,
+                'status' => $status,
+                'sent' => $sentCount,
+                'failed' => $failedCount,
+            ]);
+        }
+    }
 
     protected function resolveSubscriber(): Subscribable
     {
@@ -221,7 +263,7 @@ class SendSingleCampaignEmail implements ShouldQueue
 
         return Str::markdown($content, [
             'html_input' => 'allow',
-            'allow_unsafe_links' => true,
+            'allow_unsafe_links' => false,
         ]);
     }
 }

@@ -1,8 +1,8 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Http\Controllers;
+namespace ColorrageAR\Autoresponder\Http\Controllers;
 
-use CmrManagement\Autoresponder\Models\SendLog;
+use ColorrageAR\Autoresponder\Models\SendLog;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Log;
@@ -45,7 +45,16 @@ class TrackingController extends Controller
             $decodedUrl = base64_decode($url, true);
 
             if ($decodedUrl === false) {
-                $decodedUrl = $url;
+                $decodedUrl = config('app.url', '/');
+            }
+
+            if (! $this->isSafeRedirectUrl($decodedUrl)) {
+                Log::warning('Autoresponder click tracking blocked unsafe redirect', [
+                    'send_log_id' => $id,
+                    'url' => $decodedUrl,
+                ]);
+
+                return new RedirectResponse(config('app.url', '/'), 302);
             }
 
             $sendLog = SendLog::find($id);
@@ -66,9 +75,28 @@ class TrackingController extends Controller
                 'error' => $e->getMessage(),
             ]);
 
-            $fallbackUrl = base64_decode($url, true) ?: config('app.url', '/');
-
-            return new RedirectResponse($fallbackUrl, 302);
+            return new RedirectResponse(config('app.url', '/'), 302);
         }
+    }
+
+    /**
+     * Validate that a URL is safe to redirect to.
+     */
+    private function isSafeRedirectUrl(string $url): bool
+    {
+        $scheme = parse_url($url, PHP_URL_SCHEME);
+
+        if (! in_array($scheme, ['http', 'https'], true)) {
+            return false;
+        }
+
+        $allowedDomains = config('autoresponder.allowed_redirect_domains', []);
+
+        if (! empty($allowedDomains)) {
+            $host = parse_url($url, PHP_URL_HOST);
+            return in_array($host, $allowedDomains, true);
+        }
+
+        return true;
     }
 }

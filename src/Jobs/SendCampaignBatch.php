@@ -1,17 +1,17 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Jobs;
+namespace ColorrageAR\Autoresponder\Jobs;
 
-use CmrManagement\Autoresponder\Models\Campaign;
-use CmrManagement\Autoresponder\Services\CampaignService;
+use ColorrageAR\Autoresponder\Models\Campaign;
+use ColorrageAR\Autoresponder\Services\CampaignService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
-use function CmrManagement\Autoresponder\ar_log;
-use function CmrManagement\Autoresponder\ar_queue;
+use function ColorrageAR\Autoresponder\ar_log;
+use function ColorrageAR\Autoresponder\ar_queue;
 
 class SendCampaignBatch implements ShouldQueue
 {
@@ -54,7 +54,17 @@ class SendCampaignBatch implements ShouldQueue
             'campaign_id' => $campaign->id,
         ]);
 
-        $recipients = $campaignService->resolveRecipients($campaign);
+        $recipients = $campaignService->resolveRecipients($campaign->filter_params ?? []);
+
+        if ($recipients->isEmpty()) {
+            $campaign->update(['status' => 'failed']);
+
+            ar_log()->warning('SendCampaignBatch: no recipients found, marking as failed', [
+                'campaign_id' => $campaign->id,
+            ]);
+
+            return;
+        }
         $batchDelay = config('autoresponder.rate_limit.batch_delay_seconds', 30);
         $dispatched = 0;
 

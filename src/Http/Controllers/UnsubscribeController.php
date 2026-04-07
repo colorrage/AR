@@ -1,16 +1,16 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Http\Controllers;
+namespace ColorrageAR\Autoresponder\Http\Controllers;
 
-use CmrManagement\Autoresponder\Models\Enrollment;
-use CmrManagement\Autoresponder\Models\SendLog;
-use CmrManagement\Autoresponder\Models\Unsubscribe;
+use ColorrageAR\Autoresponder\Models\Enrollment;
+use ColorrageAR\Autoresponder\Models\SendLog;
+use ColorrageAR\Autoresponder\Models\Unsubscribe;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
-use function CmrManagement\Autoresponder\ar_table;
+use function ColorrageAR\Autoresponder\ar_table;
 
 class UnsubscribeController extends Controller
 {
@@ -48,6 +48,8 @@ class UnsubscribeController extends Controller
 
     public function process(Request $request, string $token): View
     {
+        $sendLog = null;
+
         try {
             $sendLog = SendLog::where('unsubscribe_token', $token)->first();
 
@@ -69,9 +71,12 @@ class UnsubscribeController extends Controller
 
             Enrollment::where('email', $email)
                 ->where('state', 'active')
-                ->each(function (Enrollment $enrollment) {
-                    $enrollment->markUnsubscribed();
-                });
+                ->update([
+                    'state' => 'unsubscribed',
+                    'exit_reason' => 'Subscriber unsubscribed',
+                    'exited_at' => now(),
+                    'next_run_at' => null,
+                ]);
 
             return $this->renderView('success', $lang, ['email' => $email]);
         } catch (\Throwable $e) {
@@ -80,7 +85,7 @@ class UnsubscribeController extends Controller
                 'error' => $e->getMessage(),
             ]);
 
-            return $this->renderView('error', $sendLog->language ?? 'en');
+            return $this->renderView('error', $sendLog?->language ?? 'en');
         }
     }
 

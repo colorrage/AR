@@ -1,15 +1,15 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Services;
+namespace ColorrageAR\Autoresponder\Services;
 
 use Carbon\Carbon;
-use CmrManagement\Autoresponder\Models\Campaign;
-use CmrManagement\Autoresponder\Models\SendLog;
-use CmrManagement\Autoresponder\Models\Unsubscribe;
+use ColorrageAR\Autoresponder\Models\Campaign;
+use ColorrageAR\Autoresponder\Models\SendLog;
+use ColorrageAR\Autoresponder\Models\Unsubscribe;
 use Illuminate\Support\Collection;
 
-use function CmrManagement\Autoresponder\ar_log;
-use function CmrManagement\Autoresponder\ar_queue;
+use function ColorrageAR\Autoresponder\ar_log;
+use function ColorrageAR\Autoresponder\ar_queue;
 
 class CampaignService
 {
@@ -39,26 +39,12 @@ class CampaignService
             'started_at'       => now(),
         ]);
 
-        // Bulk-insert send logs
-        $batchSize = 500;
-        $recipients->chunk($batchSize)->each(function (Collection $chunk) use ($campaign) {
-            $rows = $chunk->map(fn ($subscriber) => [
-                'campaign_id'       => $campaign->id,
-                'subscriber_id'     => $subscriber->getSubscribableId(),
-                'email'             => $subscriber->getSubscribableEmail(),
-                'unsubscribe_token' => bin2hex(random_bytes(32)),
-                'status'            => 'pending',
-                'created_at'        => now(),
-                'updated_at'        => now(),
-            ])->all();
-
-            SendLog::insert($rows);
-        });
-
         ar_log()->info('Campaign sending initiated', [
             'campaign_id' => $campaign->id,
             'recipients'  => $recipients->count(),
         ]);
+
+        SendCampaignBatch::dispatch($campaign->id)->onQueue(ar_queue());
     }
 
     /**
@@ -135,7 +121,7 @@ class CampaignService
 
         $subscribers = collect();
         foreach ($listIds as $listId) {
-            $list = \CmrManagement\Autoresponder\Models\MailerList::find($listId);
+            $list = \ColorrageAR\Autoresponder\Models\MailerList::find($listId);
             if ($list) {
                 $subscribers = $subscribers->merge($this->listService->getSubscribers($list));
             }
@@ -153,7 +139,7 @@ class CampaignService
         $emails = array_filter(array_map('trim', explode(',', $emailsCsv)));
 
         return collect($emails)->map(function (string $email) {
-            return new class ($email) implements \CmrManagement\Autoresponder\Contracts\Subscribable {
+            return new class ($email) implements \ColorrageAR\Autoresponder\Contracts\Subscribable {
                 public function __construct(private readonly string $email) {}
                 public function getSubscribableId(): int|string { return 0; }
                 public function getSubscribableEmail(): string { return $this->email; }
