@@ -1,17 +1,17 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Jobs;
+namespace ColorrageAR\Autoresponder\Jobs;
 
-use CmrManagement\Autoresponder\Models\Campaign;
-use CmrManagement\Autoresponder\Services\CampaignService;
+use ColorrageAR\Autoresponder\Models\Campaign;
+use ColorrageAR\Autoresponder\Services\CampaignService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
-use function CmrManagement\Autoresponder\ar_log;
-use function CmrManagement\Autoresponder\ar_queue;
+use function ColorrageAR\Autoresponder\ar_log;
+use function ColorrageAR\Autoresponder\ar_queue;
 
 class SendScheduledCampaign implements ShouldQueue
 {
@@ -29,40 +29,38 @@ class SendScheduledCampaign implements ShouldQueue
 
     public function handle(CampaignService $campaignService): void
     {
-        $campaign = Campaign::find($this->campaignId);
+        $affected = Campaign::where('id', $this->campaignId)
+            ->where('status', 'scheduled')
+            ->where(function ($q) {
+                $q->whereNull('scheduled_at')
+                    ->orWhere('scheduled_at', '<=', now());
+            })
+            ->update(['status' => 'sending']);
 
-        if (! $campaign) {
-            ar_log()->warning('SendScheduledCampaign: campaign not found', [
+        if ($affected === 0) {
+            $campaign = Campaign::find($this->campaignId);
+
+            if (! $campaign) {
+                ar_log()->warning('SendScheduledCampaign: campaign not found', [
+                    'campaign_id' => $this->campaignId,
+                ]);
+
+                return;
+            }
+
+            ar_log()->info('SendScheduledCampaign: campaign already dispatched or not ready', [
                 'campaign_id' => $this->campaignId,
-            ]);
-
-            return;
-        }
-
-        if ($campaign->status !== 'scheduled') {
-            ar_log()->info('SendScheduledCampaign: campaign is not in scheduled state', [
-                'campaign_id' => $campaign->id,
                 'status' => $campaign->status,
             ]);
 
             return;
         }
 
-        if ($campaign->scheduled_at && $campaign->scheduled_at->isFuture()) {
-            ar_log()->info('SendScheduledCampaign: scheduled time not yet reached', [
-                'campaign_id' => $campaign->id,
-                'scheduled_at' => $campaign->scheduled_at->toDateTimeString(),
-            ]);
-
-            return;
-        }
-
         ar_log()->info('SendScheduledCampaign: launching campaign batch', [
-            'campaign_id' => $campaign->id,
-            'scheduled_at' => $campaign->scheduled_at?->toDateTimeString(),
+            'campaign_id' => $this->campaignId,
         ]);
 
-        SendCampaignBatch::dispatch($campaign->id);
+        SendCampaignBatch::dispatch($this->campaignId);
     }
 
     public function failed(\Throwable $exception): void

@@ -1,13 +1,13 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Commands;
+namespace ColorrageAR\Autoresponder\Commands;
 
 use Carbon\Carbon;
-use CmrManagement\Autoresponder\Jobs\SendScheduledCampaign;
-use CmrManagement\Autoresponder\Models\Campaign;
+use ColorrageAR\Autoresponder\Jobs\SendScheduledCampaign;
+use ColorrageAR\Autoresponder\Models\Campaign;
 use Illuminate\Console\Command;
 
-use function CmrManagement\Autoresponder\ar_log;
+use function ColorrageAR\Autoresponder\ar_log;
 
 class ProcessScheduledCampaigns extends Command
 {

@@ -1,12 +1,12 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Commands;
+namespace ColorrageAR\Autoresponder\Commands;
 
-use CmrManagement\Autoresponder\Models\Template;
+use ColorrageAR\Autoresponder\Models\Template;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 
-use function CmrManagement\Autoresponder\ar_log;
+use function ColorrageAR\Autoresponder\ar_log;
 
 class ImportTemplates extends Command
 {

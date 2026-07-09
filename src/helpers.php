@@ -1,6 +1,6 @@
 <?php
 
-namespace CmrManagement\Autoresponder;
+namespace ColorrageAR\Autoresponder;
 
 use Illuminate\Support\Facades\Log;
 use Psr\Log\LoggerInterface;

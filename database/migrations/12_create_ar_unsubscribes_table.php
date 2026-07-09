@@ -13,6 +13,7 @@ return new class extends Migration
         Schema::create($prefix . 'unsubscribes', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->unsignedBigInteger('subscriber_id')->nullable();
+            $table->unsignedBigInteger('send_log_id')->nullable();
             $table->string('email')->index();
             $table->text('reason')->nullable();
             $table->string('ip_address', 45)->nullable();

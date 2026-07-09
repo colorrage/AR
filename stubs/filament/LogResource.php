@@ -3,9 +3,9 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\LogResource\Pages;
-use CmrManagement\Autoresponder\Models\SendLog;
+use ColorrageAR\Autoresponder\Models\SendLog;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -13,14 +13,14 @@ use Filament\Tables\Table;
 class LogResource extends Resource
 {
     protected static ?string $model = SendLog::class;
-    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
-    protected static ?string $navigationGroup = 'Autoresponder';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-clipboard-document-list';
+    protected static string | \UnitEnum | null $navigationGroup = 'Autoresponder';
     protected static ?string $navigationLabel = 'Send Logs';
     protected static ?string $pluralModelLabel = 'Send Logs';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form->schema([
+        return  $schema->components([
             TextInput::make('email')
                 ->required()
                 ->maxLength(255),
@@ -39,10 +39,11 @@ class LogResource extends Resource
                 ->sortable(),
             TextColumn::make('status')
                 ->badge()
-                ->colors([
-                    'success' => 'sent',
-                    'danger' => 'failed',
-                ]),
+                ->color(fn (string $state): string => match ($state) {
+                    'sent' => 'success',
+                    'failed' => 'danger',
+                    default => 'gray',
+                }),
             TextColumn::make('opened_at')
                 ->dateTime()
                 ->sortable(),

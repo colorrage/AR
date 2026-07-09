@@ -1,6 +1,6 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Contracts;
+namespace ColorrageAR\Autoresponder\Contracts;
 
 interface Subscribable
 {

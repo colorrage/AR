@@ -1,18 +1,18 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Listeners;
+namespace ColorrageAR\Autoresponder\Listeners;
 
-use CmrManagement\Autoresponder\Events\CustomTrigger;
-use CmrManagement\Autoresponder\Events\ListSubscribed;
-use CmrManagement\Autoresponder\Events\PaymentFailed;
-use CmrManagement\Autoresponder\Events\PaymentSucceeded;
-use CmrManagement\Autoresponder\Events\SubscriberLoggedIn;
-use CmrManagement\Autoresponder\Events\SubscriberRegistered;
-use CmrManagement\Autoresponder\Services\AutoresponderService;
+use ColorrageAR\Autoresponder\Events\CustomTrigger;
+use ColorrageAR\Autoresponder\Events\ListSubscribed;
+use ColorrageAR\Autoresponder\Events\PaymentFailed;
+use ColorrageAR\Autoresponder\Events\PaymentSucceeded;
+use ColorrageAR\Autoresponder\Events\SubscriberLoggedIn;
+use ColorrageAR\Autoresponder\Events\SubscriberRegistered;
+use ColorrageAR\Autoresponder\Services\AutoresponderService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
 
-use function CmrManagement\Autoresponder\ar_log;
+use function ColorrageAR\Autoresponder\ar_log;
 
 class TriggerListener implements ShouldQueue
 {

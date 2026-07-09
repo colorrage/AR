@@ -1,8 +1,8 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Events;
+namespace ColorrageAR\Autoresponder\Events;
 
-use CmrManagement\Autoresponder\Contracts\Subscribable;
+use ColorrageAR\Autoresponder\Contracts\Subscribable;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 

@@ -1,10 +1,10 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Concerns;
+namespace ColorrageAR\Autoresponder\Concerns;
 
-use CmrManagement\Autoresponder\Models\Enrollment;
-use CmrManagement\Autoresponder\Models\SendLog;
-use CmrManagement\Autoresponder\Models\Unsubscribe;
+use ColorrageAR\Autoresponder\Models\Enrollment;
+use ColorrageAR\Autoresponder\Models\SendLog;
+use ColorrageAR\Autoresponder\Models\Unsubscribe;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**

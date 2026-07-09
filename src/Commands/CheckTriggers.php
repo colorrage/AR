@@ -1,13 +1,13 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Commands;
+namespace ColorrageAR\Autoresponder\Commands;
 
-use CmrManagement\Autoresponder\Contracts\TriggerHandler;
-use CmrManagement\Autoresponder\Models\Sequence;
-use CmrManagement\Autoresponder\Services\AutoresponderService;
+use ColorrageAR\Autoresponder\Contracts\TriggerHandler;
+use ColorrageAR\Autoresponder\Models\Sequence;
+use ColorrageAR\Autoresponder\Services\AutoresponderService;
 use Illuminate\Console\Command;
 
-use function CmrManagement\Autoresponder\ar_log;
+use function ColorrageAR\Autoresponder\ar_log;
 
 class CheckTriggers extends Command
 {
@@ -88,11 +88,21 @@ class CheckTriggers extends Command
 
                 foreach ($subscribers as $subscriber) {
                     if ($dryRun) {
+                        \Illuminate\Support\Facades\DB::beginTransaction();
+                        $enrollment = $service->enrollInSequence($subscriber, $sequence);
+                        \Illuminate\Support\Facades\DB::rollBack();
+
                         $email = method_exists($subscriber, 'getSubscribableEmail')
                             ? $subscriber->getSubscribableEmail()
                             : ($subscriber->email ?? '?');
-                        $this->line("    [DRY-RUN] Would enroll: {$email}");
-                        $enrolled++;
+
+                        if ($enrollment) {
+                            $this->line("    [DRY-RUN] Would enroll: {$email}");
+                            $enrolled++;
+                        } else {
+                            $this->line("    [DRY-RUN] Would skip: {$email} (already enrolled/unsubscribed)");
+                            $skipped++;
+                        }
 
                         continue;
                     }

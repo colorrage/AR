@@ -75,6 +75,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Quiet Hours Timezone
+    |--------------------------------------------------------------------------
+    |
+    | Timezone used for quiet hours evaluation. Defaults to the app timezone.
+    | Set this explicitly if your sequences should use a different timezone
+    | than the application default.
+    |
+    */
+    'quiet_hours_timezone' => env('AUTORESPONDER_QUIET_HOURS_TIMEZONE', env('APP_TIMEZONE', 'UTC')),
+
+    /*
+    |--------------------------------------------------------------------------
     | Queue
     |--------------------------------------------------------------------------
     |

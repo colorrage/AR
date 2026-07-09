@@ -1,7 +1,7 @@
 <?php
 
-use CmrManagement\Autoresponder\Http\Controllers\TrackingController;
-use CmrManagement\Autoresponder\Http\Controllers\UnsubscribeController;
+use ColorrageAR\Autoresponder\Http\Controllers\TrackingController;
+use ColorrageAR\Autoresponder\Http\Controllers\UnsubscribeController;
 use Illuminate\Support\Facades\Route;
 
 Route::group([

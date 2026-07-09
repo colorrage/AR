@@ -20,6 +20,8 @@ return new class extends Migration
             $table->string('entry_filter_type')->default('all');
             $table->json('entry_filter_config')->nullable();
             $table->enum('status', ['draft', 'active', 'paused'])->default('draft');
+            $table->boolean('is_active')->default(true);
+            $table->string('stop_sequence_on_event')->nullable();
             $table->unsignedInteger('priority')->default(0);
             $table->string('default_locale', 10)->default('en');
             $table->boolean('enable_utm_tracking')->default(false);

@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Autoresponder;
 
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
-use CmrManagement\Autoresponder\Models\Campaign;
+use ColorrageAR\Autoresponder\Models\Campaign;
 
 class CampaignController extends Controller
 {

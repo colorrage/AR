@@ -137,8 +137,8 @@ Built-in token resolvers and custom resolvers are registered here:
 Add the `Subscribable` interface and `HasSubscriptions` trait to your User (or any model):
 
 ```php
-use CmrManagement\Autoresponder\Contracts\Subscribable;
-use CmrManagement\Autoresponder\Traits\HasSubscriptions;
+use ColorrageAR\Autoresponder\Contracts\Subscribable;
+use ColorrageAR\Autoresponder\Traits\HasSubscriptions;
 
 class User extends Authenticatable implements Subscribable
 {
@@ -157,8 +157,8 @@ class User extends Authenticatable implements Subscribable
 ### 2. Create a sequence
 
 ```php
-use CmrManagement\Autoresponder\Models\Sequence;
-use CmrManagement\Autoresponder\Models\Step;
+use ColorrageAR\Autoresponder\Models\Sequence;
+use ColorrageAR\Autoresponder\Models\Step;
 
 $sequence = Sequence::create([
     'name'         => 'Welcome Series',
@@ -190,7 +190,7 @@ $sequence->steps()->create([
 Programmatically:
 
 ```php
-use CmrManagement\Autoresponder\Facades\Autoresponder;
+use ColorrageAR\Autoresponder\Facades\Autoresponder;
 
 Autoresponder::enroll($user, $sequence);
 ```
@@ -198,7 +198,7 @@ Autoresponder::enroll($user, $sequence);
 Or dispatch the registration event so the trigger system picks it up automatically:
 
 ```php
-use CmrManagement\Autoresponder\Events\SubscriberRegistered;
+use ColorrageAR\Autoresponder\Events\SubscriberRegistered;
 
 event(new SubscriberRegistered($user));
 ```
@@ -231,7 +231,7 @@ The package dispatches and listens to these events:
 ### Dispatching custom trigger events
 
 ```php
-use CmrManagement\Autoresponder\Events\CustomTriggerFired;
+use ColorrageAR\Autoresponder\Events\CustomTriggerFired;
 
 // Trigger sequences that listen for 'first_purchase'
 event(new CustomTriggerFired('first_purchase', $user, [
@@ -244,7 +244,7 @@ event(new CustomTriggerFired('first_purchase', $user, [
 Conditions control whether a step is sent. Implement `ConditionChecker`:
 
 ```php
-use CmrManagement\Autoresponder\Contracts\ConditionChecker;
+use ColorrageAR\Autoresponder\Contracts\ConditionChecker;
 
 class HasActiveSubscription implements ConditionChecker
 {
@@ -278,7 +278,7 @@ $step->update([
 Stop events unenroll a subscriber from a sequence when a condition is met. Implement `StopEventChecker`:
 
 ```php
-use CmrManagement\Autoresponder\Contracts\StopEventChecker;
+use ColorrageAR\Autoresponder\Contracts\StopEventChecker;
 
 class SubscriberUpgraded implements StopEventChecker
 {
@@ -302,8 +302,8 @@ Register in config:
 Triggers control when a subscriber is enrolled in a sequence. Implement `TriggerHandler`:
 
 ```php
-use CmrManagement\Autoresponder\Contracts\TriggerHandler;
-use CmrManagement\Autoresponder\Models\Sequence;
+use ColorrageAR\Autoresponder\Contracts\TriggerHandler;
+use ColorrageAR\Autoresponder\Models\Sequence;
 
 class InactivityTrigger implements TriggerHandler
 {
@@ -344,7 +344,7 @@ Built-in tokens available in subjects and bodies:
 ### Custom token resolver
 
 ```php
-use CmrManagement\Autoresponder\Contracts\TokenResolver;
+use ColorrageAR\Autoresponder\Contracts\TokenResolver;
 
 class CompanyTokenResolver implements TokenResolver
 {
@@ -433,7 +433,7 @@ $step->variants()->create([
 After enough sends, query analytics to pick a winner:
 
 ```php
-use CmrManagement\Autoresponder\Services\AnalyticsService;
+use ColorrageAR\Autoresponder\Services\AnalyticsService;
 
 $analytics = app(AnalyticsService::class);
 $report = $analytics->stepVariantReport($step);
@@ -445,7 +445,7 @@ $report = $analytics->stepVariantReport($step);
 Send one-off or scheduled emails to a mailer list:
 
 ```php
-use CmrManagement\Autoresponder\Services\CampaignService;
+use ColorrageAR\Autoresponder\Services\CampaignService;
 
 $campaign = app(CampaignService::class);
 
@@ -461,7 +461,7 @@ $campaign->create([
 ## Mailer Lists
 
 ```php
-use CmrManagement\Autoresponder\Services\ListService;
+use ColorrageAR\Autoresponder\Services\ListService;
 
 $listService = app(ListService::class);
 
@@ -509,7 +509,7 @@ composer test -- --coverage
 The package ships a `AutoresponderTestHelpers` trait you can use in your application tests:
 
 ```php
-use CmrManagement\Autoresponder\Testing\AutoresponderTestHelpers;
+use ColorrageAR\Autoresponder\Testing\AutoresponderTestHelpers;
 
 class MyFeatureTest extends TestCase
 {

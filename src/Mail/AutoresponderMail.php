@@ -1,6 +1,6 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Mail;
+namespace ColorrageAR\Autoresponder\Mail;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;

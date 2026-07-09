@@ -1,9 +1,9 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Services;
+namespace ColorrageAR\Autoresponder\Services;
 
-use CmrManagement\Autoresponder\Contracts\Subscribable;
-use CmrManagement\Autoresponder\Contracts\TokenResolver;
+use ColorrageAR\Autoresponder\Contracts\Subscribable;
+use ColorrageAR\Autoresponder\Contracts\TokenResolver;
 
 class TokenService
 {

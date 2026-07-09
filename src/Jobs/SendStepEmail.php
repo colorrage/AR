@@ -2,6 +2,7 @@
 
 namespace ColorrageAR\Autoresponder\Jobs;
 
+use ColorrageAR\Autoresponder\Concerns\TracksEmailEngagement;
 use ColorrageAR\Autoresponder\Contracts\Subscribable;
 use ColorrageAR\Autoresponder\Mail\AutoresponderMail;
 use ColorrageAR\Autoresponder\Models\Enrollment;
@@ -24,7 +25,7 @@ use function ColorrageAR\Autoresponder\ar_queue;
 
 class SendStepEmail implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, TracksEmailEngagement;
 
     public int $tries;
 
@@ -99,7 +100,7 @@ class SendStepEmail implements ShouldQueue
             ]);
 
             $body = $this->addTrackingPixel($body, $sendLog->id);
-            $body = $this->wrapLinksForTracking($body, $sendLog, $sequence);
+            $body = $this->wrapLinksForTracking($body, $sendLog);
 
             if ($sequence->enable_utm_tracking) {
                 $utmParams = $sequence->getUtmParameters();
@@ -209,39 +210,6 @@ class SendStepEmail implements ShouldQueue
         };
     }
 
-    protected function addTrackingPixel(string $body, int $logId): string
-    {
-        $pixelUrl = route('autoresponder.track.open', ['id' => $logId]);
-        $pixel = '<img src="' . $pixelUrl . '" width="1" height="1" alt="" style="display:block" />';
-
-        return $body . $pixel;
-    }
-
-    protected function wrapLinksForTracking(string $body, SendLog $sendLog, $sequence): string
-    {
-        return preg_replace_callback(
-            '/<a\s+([^>]*?)href=["\']([^"\']+)["\']([^>]*?)>/i',
-            function ($matches) use ($sendLog) {
-                $originalUrl = $matches[2];
-
-                $skipPatterns = ['unsubscribe', 'track/open', 'track/click', 'mailto:', 'tel:', '#'];
-                foreach ($skipPatterns as $pattern) {
-                    if (str_contains($originalUrl, $pattern) || $originalUrl === $pattern) {
-                        return $matches[0];
-                    }
-                }
-
-                $trackingUrl = route('autoresponder.track.click', [
-                    'id' => $sendLog->id,
-                    'url' => base64_encode($originalUrl),
-                ]);
-
-                return "<a {$matches[1]}href=\"{$trackingUrl}\"{$matches[3]}>";
-            },
-            $body
-        );
-    }
-
     protected function appendUtmToUrl(string $url, array $utmParams): string
     {
         $parsed = parse_url($url);
@@ -266,29 +234,6 @@ class SendStepEmail implements ShouldQueue
         return $scheme . $host . $port . $path . $query . $fragment;
     }
 
-    protected function addUnsubscribeLink(string $body, SendLog $sendLog, string $language): string
-    {
-        $unsubscribeUrl = route('autoresponder.unsubscribe', ['token' => $sendLog->unsubscribe_token]);
-        $text = $this->getUnsubscribeText($language);
-
-        $footer = <<<HTML
-            <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 12px; color: #6b7280;">
-                <p>{$text['main']} <a href="{$unsubscribeUrl}" style="color: #667eea; text-decoration: underline;">{$text['link']}</a>.</p>
-            </div>
-            HTML;
-
-        return $body . $footer;
-    }
-
-    protected function getUnsubscribeText(string $language): array
-    {
-        $translations = config('autoresponder.unsubscribe_translations', []);
-
-        return $translations[$language]
-            ?? $translations['en']
-            ?? ['main' => 'To unsubscribe', 'link' => 'click here'];
-    }
-
     protected function createSkippedLog(Enrollment $enrollment, Step $step, string $reason): void
     {
         StepLog::create([
@@ -308,24 +253,6 @@ class SendStepEmail implements ShouldQueue
         ]);
     }
 
-    protected function parseMarkdownToHtml(string $content): string
-    {
-        if (str_contains($content, '<html') || str_contains($content, '<!DOCTYPE')) {
-            return $content;
-        }
-
-        $hasMarkdown = preg_match('/\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\)|^#+\s|^-\s|\n\n/m', $content);
-
-        if (! $hasMarkdown) {
-            return nl2br($content);
-        }
-
-        return Str::markdown($content, [
-            'html_input' => 'allow',
-            'allow_unsafe_links' => false,
-        ]);
-    }
-
     protected function handleSendError(Enrollment $enrollment, Step $step, \Exception $e): void
     {
         ar_log()->warning('Autoresponder step email send failed', [
@@ -336,11 +263,24 @@ class SendStepEmail implements ShouldQueue
         ]);
 
         if ($this->attempts() >= $this->tries) {
+            $pendingSendLog = SendLog::where('autoresponder_step_id', $step->id)
+                ->where('email', $enrollment->email)
+                ->where('status', 'pending')
+                ->latest('created_at')
+                ->first();
+
+            if ($pendingSendLog) {
+                $pendingSendLog->update([
+                    'status' => 'failed',
+                    'error_message' => Str::limit($e->getMessage(), 500),
+                ]);
+            }
+
             StepLog::create([
                 'enrollment_id' => $enrollment->id,
                 'sequence_id' => $enrollment->sequence_id,
                 'step_id' => $step->id,
-                'send_log_id' => null,
+                'send_log_id' => $pendingSendLog?->id,
                 'status' => 'failed',
                 'scheduled_at' => now(),
                 'error_message' => $e->getMessage(),

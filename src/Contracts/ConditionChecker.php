@@ -1,9 +1,9 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Contracts;
+namespace ColorrageAR\Autoresponder\Contracts;
 
-use CmrManagement\Autoresponder\Models\Enrollment;
-use CmrManagement\Autoresponder\Models\Step;
+use ColorrageAR\Autoresponder\Models\Enrollment;
+use ColorrageAR\Autoresponder\Models\Step;
 
 interface ConditionChecker
 {

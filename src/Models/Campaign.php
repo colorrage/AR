@@ -1,15 +1,16 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Models;
+namespace ColorrageAR\Autoresponder\Models;
 
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-use function CmrManagement\Autoresponder\ar_table;
+use function ColorrageAR\Autoresponder\ar_table;
 
 class Campaign extends Model
 {
@@ -43,6 +44,11 @@ class Campaign extends Model
     public function sendLogs(): HasMany
     {
         return $this->hasMany(SendLog::class, 'campaign_id');
+    }
+
+    public function mailerLists(): BelongsToMany
+    {
+        return $this->belongsToMany(MailerList::class, ar_table('list_usages'), 'campaign_id', 'list_id');
     }
 
     // ── Scopes ───────────────────────────────────────────────────────

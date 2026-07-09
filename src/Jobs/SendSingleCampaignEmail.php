@@ -2,6 +2,7 @@
 
 namespace ColorrageAR\Autoresponder\Jobs;
 
+use ColorrageAR\Autoresponder\Concerns\TracksEmailEngagement;
 use ColorrageAR\Autoresponder\Contracts\Subscribable;
 use ColorrageAR\Autoresponder\Mail\AutoresponderMail;
 use ColorrageAR\Autoresponder\Models\Campaign;
@@ -21,7 +22,7 @@ use function ColorrageAR\Autoresponder\ar_subscriber_model;
 
 class SendSingleCampaignEmail implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, TracksEmailEngagement;
 
     public int $tries;
 
@@ -78,11 +79,8 @@ class SendSingleCampaignEmail implements ShouldQueue
             'unsubscribe_token' => bin2hex(random_bytes(32)),
         ]);
 
-        $pixelUrl = route('autoresponder.track.open', ['id' => $sendLog->id]);
-        $body .= '<img src="' . $pixelUrl . '" width="1" height="1" alt="" style="display:block" />';
-
+        $body = $this->addTrackingPixel($body, $sendLog->id);
         $body = $this->wrapLinksForTracking($body, $sendLog);
-
         $body = $this->addUnsubscribeLink($body, $sendLog, $language);
 
         $sendLog->update(['body_html' => $body]);

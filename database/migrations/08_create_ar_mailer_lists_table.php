@@ -17,6 +17,7 @@ return new class extends Migration
             $table->enum('type', ['manual', 'dynamic'])->default('manual');
             $table->json('filter_config')->nullable();
             $table->enum('status', ['active', 'archived'])->default('active');
+            $table->boolean('is_active')->default(true);
             $table->unsignedInteger('subscriber_count')->default(0);
             $table->timestamps();
         });

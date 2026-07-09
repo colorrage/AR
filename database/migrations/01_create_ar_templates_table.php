@@ -14,7 +14,9 @@ return new class extends Migration
             $table->bigIncrements('id');
             $table->string('name');
             $table->string('subject');
-            $table->longText('body_html');
+            $table->longText('body');
+            $table->longText('body_html')->nullable();
+            $table->longText('body_text')->nullable();
             $table->string('locale', 10)->default('en');
             $table->unsignedBigInteger('created_by')->nullable();
             $table->timestamps();

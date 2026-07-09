@@ -1,15 +1,15 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Commands;
+namespace ColorrageAR\Autoresponder\Commands;
 
 use Carbon\Carbon;
-use CmrManagement\Autoresponder\Jobs\ProcessEnrollment;
-use CmrManagement\Autoresponder\Models\Enrollment;
+use ColorrageAR\Autoresponder\Jobs\ProcessEnrollment;
+use ColorrageAR\Autoresponder\Models\Enrollment;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
-use function CmrManagement\Autoresponder\ar_log;
-use function CmrManagement\Autoresponder\ar_table;
+use function ColorrageAR\Autoresponder\ar_log;
+use function ColorrageAR\Autoresponder\ar_table;
 
 class ProcessEnrollments extends Command
 {
@@ -64,7 +64,7 @@ class ProcessEnrollments extends Command
             if ($dryRun) {
                 $this->line("  [DRY-RUN] Would dispatch enrollment #{$enrollment->id} (sequence: {$enrollment->sequence->name})");
             } else {
-                ProcessEnrollment::dispatch($enrollment);
+                ProcessEnrollment::dispatch($enrollment->id);
             }
 
             $dispatched++;

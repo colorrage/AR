@@ -1,6 +1,6 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Models;
+namespace ColorrageAR\Autoresponder\Models;
 
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
-use function CmrManagement\Autoresponder\ar_table;
+use function ColorrageAR\Autoresponder\ar_table;
 
 class Sequence extends Model
 {
@@ -116,13 +116,14 @@ class Sequence extends Model
             return false;
         }
 
-        $now = Carbon::now();
-        $start = Carbon::today()->setTimeFromTimeString(
+        $tz = config('autoresponder.quiet_hours_timezone', config('app.timezone'));
+        $now = Carbon::now($tz);
+        $start = Carbon::today($tz)->setTimeFromTimeString(
             $this->quiet_hours_start instanceof Carbon
                 ? $this->quiet_hours_start->format('H:i')
                 : $this->quiet_hours_start
         );
-        $end = Carbon::today()->setTimeFromTimeString(
+        $end = Carbon::today($tz)->setTimeFromTimeString(
             $this->quiet_hours_end instanceof Carbon
                 ? $this->quiet_hours_end->format('H:i')
                 : $this->quiet_hours_end
@@ -141,7 +142,8 @@ class Sequence extends Model
             return Carbon::now();
         }
 
-        $end = Carbon::today()->setTimeFromTimeString(
+        $tz = config('autoresponder.quiet_hours_timezone', config('app.timezone'));
+        $end = Carbon::today($tz)->setTimeFromTimeString(
             $this->quiet_hours_end instanceof Carbon
                 ? $this->quiet_hours_end->format('H:i')
                 : $this->quiet_hours_end

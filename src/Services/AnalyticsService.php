@@ -1,14 +1,14 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Services;
+namespace ColorrageAR\Autoresponder\Services;
 
 use Carbon\Carbon;
-use CmrManagement\Autoresponder\Models\Campaign;
-use CmrManagement\Autoresponder\Models\Enrollment;
-use CmrManagement\Autoresponder\Models\SendLog;
-use CmrManagement\Autoresponder\Models\Sequence;
-use CmrManagement\Autoresponder\Models\Step;
-use CmrManagement\Autoresponder\Models\StepLog;
+use ColorrageAR\Autoresponder\Models\Campaign;
+use ColorrageAR\Autoresponder\Models\Enrollment;
+use ColorrageAR\Autoresponder\Models\SendLog;
+use ColorrageAR\Autoresponder\Models\Sequence;
+use ColorrageAR\Autoresponder\Models\Step;
+use ColorrageAR\Autoresponder\Models\StepLog;
 
 class AnalyticsService
 {
@@ -55,19 +55,16 @@ class AnalyticsService
         $skipped = (clone $logs)->where('status', 'skipped')->count();
         $failed  = (clone $logs)->where('status', 'failed')->count();
 
-        // Engagement via the related send logs
-        $sentLogs = StepLog::where('step_id', $step->id)
+        // Engagement via the related send logs — single JOIN query
+        $opened = StepLog::where('step_id', $step->id)
             ->where('status', 'sent')
-            ->whereNotNull('send_log_id')
-            ->pluck('send_log_id');
+            ->whereHas('sendLog', fn ($q) => $q->whereNotNull('opened_at'))
+            ->count();
 
-        $opened  = 0;
-        $clicked = 0;
-
-        if ($sentLogs->isNotEmpty()) {
-            $opened  = SendLog::whereIn('id', $sentLogs)->whereNotNull('opened_at')->count();
-            $clicked = SendLog::whereIn('id', $sentLogs)->whereNotNull('clicked_at')->count();
-        }
+        $clicked = StepLog::where('step_id', $step->id)
+            ->where('status', 'sent')
+            ->whereHas('sendLog', fn ($q) => $q->whereNotNull('clicked_at'))
+            ->count();
 
         $openRate  = $sent > 0 ? round(($opened / $sent) * 100, 2) : 0.0;
         $clickRate = $sent > 0 ? round(($clicked / $sent) * 100, 2) : 0.0;

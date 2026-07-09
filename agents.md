@@ -4,7 +4,7 @@
 
 ## One-line summary
 
-**`cmr-management/laravel-autoresponder`** — Laravel package (`CmrManagement\Autoresponder`) for autoresponder sequences, campaigns, mailer lists, HTML templates, tracking, and unsubscribes. Subscribers are **any** Eloquent model implementing **`Subscribable`**, configured via **`config/autoresponder.php`**.
+**`cmr-management/laravel-autoresponder`** — Laravel package (`ColorrageAR\Autoresponder`) for autoresponder sequences, campaigns, mailer lists, HTML templates, tracking, and unsubscribes. Subscribers are **any** Eloquent model implementing **`Subscribable`**, configured via **`config/autoresponder.php`**.
 
 ---
 

@@ -1,17 +1,17 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Jobs;
+namespace ColorrageAR\Autoresponder\Jobs;
 
-use CmrManagement\Autoresponder\Models\Enrollment;
-use CmrManagement\Autoresponder\Services\AutoresponderService;
+use ColorrageAR\Autoresponder\Models\Enrollment;
+use ColorrageAR\Autoresponder\Services\AutoresponderService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
-use function CmrManagement\Autoresponder\ar_log;
-use function CmrManagement\Autoresponder\ar_queue;
+use function ColorrageAR\Autoresponder\ar_log;
+use function ColorrageAR\Autoresponder\ar_queue;
 
 class ProcessEnrollment implements ShouldQueue
 {

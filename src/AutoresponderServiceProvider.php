@@ -1,19 +1,19 @@
 <?php
 
-namespace CmrManagement\Autoresponder;
+namespace ColorrageAR\Autoresponder;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Event;
-use CmrManagement\Autoresponder\Services\AutoresponderService;
-use CmrManagement\Autoresponder\Services\CampaignService;
-use CmrManagement\Autoresponder\Services\TokenService;
-use CmrManagement\Autoresponder\Services\ListService;
-use CmrManagement\Autoresponder\Services\AnalyticsService;
-use CmrManagement\Autoresponder\Commands\ProcessEnrollments;
-use CmrManagement\Autoresponder\Commands\CheckTriggers;
-use CmrManagement\Autoresponder\Commands\ProcessScheduledCampaigns;
-use CmrManagement\Autoresponder\Commands\ImportTemplates;
-use CmrManagement\Autoresponder\Listeners\TriggerListener;
+use ColorrageAR\Autoresponder\Services\AutoresponderService;
+use ColorrageAR\Autoresponder\Services\CampaignService;
+use ColorrageAR\Autoresponder\Services\TokenService;
+use ColorrageAR\Autoresponder\Services\ListService;
+use ColorrageAR\Autoresponder\Services\AnalyticsService;
+use ColorrageAR\Autoresponder\Commands\ProcessEnrollments;
+use ColorrageAR\Autoresponder\Commands\CheckTriggers;
+use ColorrageAR\Autoresponder\Commands\ProcessScheduledCampaigns;
+use ColorrageAR\Autoresponder\Commands\ImportTemplates;
+use ColorrageAR\Autoresponder\Listeners\TriggerListener;
 
 class AutoresponderServiceProvider extends ServiceProvider
 {
@@ -46,7 +46,7 @@ class AutoresponderServiceProvider extends ServiceProvider
                 CheckTriggers::class,
                 ProcessScheduledCampaigns::class,
                 ImportTemplates::class,
-                \CmrManagement\Autoresponder\Commands\InstallUICommand::class,
+                \ColorrageAR\Autoresponder\Commands\InstallUICommand::class,
             ]);
 
             $this->publishes([

@@ -1,5 +1,5 @@
 {
-    "name": "colorrage/AR",
+    "name": "colorrage/laravel-autoresponder",
     "description": "Full email marketing suite for Laravel: autoresponder sequences, email campaigns, mailer lists, tracking, and unsubscribes.",
     "type": "library",
     "license": "MIT",
@@ -13,8 +13,8 @@
     ],
     "authors": [
         {
-            "name": "CMR Management",
-            "email": "contact@cmr-management.eu"
+            "name": "Colorrage",
+            "email": "hello@colorrage.ro"
         }
     ],
     "require": {
@@ -32,23 +32,28 @@
     },
     "autoload": {
         "psr-4": {
-            "CmrManagement\\Autoresponder\\": "src/"
+            "ColorrageAR\\Autoresponder\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "CmrManagement\\Autoresponder\\Tests\\": "tests/"
+            "ColorrageAR\\Autoresponder\\Tests\\": "tests/",
+            "App\\": "tests/Support/App/"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "CmrManagement\\Autoresponder\\AutoresponderServiceProvider"
+                "ColorrageAR\\Autoresponder\\AutoresponderServiceProvider"
             ],
             "aliases": {
-                "Autoresponder": "CmrManagement\\Autoresponder\\Facades\\Autoresponder"
+                "Autoresponder": "ColorrageAR\\Autoresponder\\Facades\\Autoresponder"
             }
         }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "test-coverage": "phpunit --coverage-text"
     },
     "minimum-stability": "stable",
     "prefer-stable": true

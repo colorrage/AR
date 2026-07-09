@@ -1,11 +1,11 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Models;
+namespace ColorrageAR\Autoresponder\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-use function CmrManagement\Autoresponder\ar_table;
+use function ColorrageAR\Autoresponder\ar_table;
 
 class ListUsage extends Model
 {

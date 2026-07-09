@@ -1,19 +1,19 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Services;
+namespace ColorrageAR\Autoresponder\Services;
 
 use Carbon\Carbon;
-use CmrManagement\Autoresponder\Contracts\Subscribable;
-use CmrManagement\Autoresponder\Models\Enrollment;
-use CmrManagement\Autoresponder\Models\Sequence;
-use CmrManagement\Autoresponder\Models\Step;
-use CmrManagement\Autoresponder\Models\StepLog;
-use CmrManagement\Autoresponder\Models\Unsubscribe;
+use ColorrageAR\Autoresponder\Contracts\Subscribable;
+use ColorrageAR\Autoresponder\Models\Enrollment;
+use ColorrageAR\Autoresponder\Models\Sequence;
+use ColorrageAR\Autoresponder\Models\Step;
+use ColorrageAR\Autoresponder\Models\StepLog;
+use ColorrageAR\Autoresponder\Models\Unsubscribe;
 use Illuminate\Support\Collection;
 
-use function CmrManagement\Autoresponder\ar_log;
-use function CmrManagement\Autoresponder\ar_subscriber_model;
-use function CmrManagement\Autoresponder\ar_subscriber_key;
+use function ColorrageAR\Autoresponder\ar_log;
+use function ColorrageAR\Autoresponder\ar_subscriber_model;
+use function ColorrageAR\Autoresponder\ar_subscriber_key;
 
 class AutoresponderService
 {
@@ -352,18 +352,22 @@ class AutoresponderService
             return $scheduledTime;
         }
 
+        $tz = config('autoresponder.quiet_hours_timezone', config('app.timezone'));
+
         $start = Carbon::createFromTimeString(
             $sequence->quiet_hours_start instanceof Carbon
                 ? $sequence->quiet_hours_start->format('H:i:s')
-                : $sequence->quiet_hours_start
+                : $sequence->quiet_hours_start,
+            $tz
         );
         $end = Carbon::createFromTimeString(
             $sequence->quiet_hours_end instanceof Carbon
                 ? $sequence->quiet_hours_end->format('H:i:s')
-                : $sequence->quiet_hours_end
+                : $sequence->quiet_hours_end,
+            $tz
         );
 
-        $timeOfDay = Carbon::createFromTimeString($scheduledTime->format('H:i:s'));
+        $timeOfDay = Carbon::createFromTimeString($scheduledTime->format('H:i:s'), $tz);
 
         // Overnight quiet hours (e.g. 22:00–08:00)
         if ($start->greaterThan($end)) {

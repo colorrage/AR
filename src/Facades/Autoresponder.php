@@ -1,18 +1,18 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Facades;
+namespace ColorrageAR\Autoresponder\Facades;
 
 use Illuminate\Support\Facades\Facade;
-use CmrManagement\Autoresponder\Services\AutoresponderService;
+use ColorrageAR\Autoresponder\Services\AutoresponderService;
 
 /**
- * @method static \CmrManagement\Autoresponder\Models\Enrollment enroll($subscriber, \CmrManagement\Autoresponder\Models\Sequence $sequence, array $options = [])
- * @method static void unenroll($subscriber, \CmrManagement\Autoresponder\Models\Sequence $sequence)
- * @method static bool isEnrolled($subscriber, \CmrManagement\Autoresponder\Models\Sequence $sequence)
+ * @method static \ColorrageAR\Autoresponder\Models\Enrollment enroll($subscriber, \ColorrageAR\Autoresponder\Models\Sequence $sequence, array $options = [])
+ * @method static void unenroll($subscriber, \ColorrageAR\Autoresponder\Models\Sequence $sequence)
+ * @method static bool isEnrolled($subscriber, \ColorrageAR\Autoresponder\Models\Sequence $sequence)
  * @method static void processEnrollments()
  * @method static void checkTriggers()
  *
- * @see \CmrManagement\Autoresponder\Services\AutoresponderService
+ * @see \ColorrageAR\Autoresponder\Services\AutoresponderService
  */
 class Autoresponder extends Facade
 {

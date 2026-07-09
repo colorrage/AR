@@ -1,6 +1,6 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Commands;
+namespace ColorrageAR\Autoresponder\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
@@ -57,8 +57,17 @@ class InstallUICommand extends Command
 
         File::ensureDirectoryExists($targetPath);
         File::copyDirectory($stubsPath, $targetPath);
-
         $this->info("Copied Filament resources to {$targetPath}");
+
+        // Also copy the views used by Filament (email-preview, campaign-report)
+        $viewsStubPath = __DIR__ . '/../../stubs/views';
+        $viewsTargetPath = resource_path('views/vendor/autoresponder');
+
+        if (File::isDirectory($viewsStubPath)) {
+            File::ensureDirectoryExists($viewsTargetPath);
+            File::copyDirectory($viewsStubPath, $viewsTargetPath);
+            $this->info("Copied supporting views to {$viewsTargetPath}");
+        }
     }
 
     protected function installBladeStubs(): void

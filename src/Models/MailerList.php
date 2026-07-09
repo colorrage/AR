@@ -1,13 +1,13 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Models;
+namespace ColorrageAR\Autoresponder\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-use function CmrManagement\Autoresponder\ar_table;
+use function ColorrageAR\Autoresponder\ar_table;
 
 class MailerList extends Model
 {

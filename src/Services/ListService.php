@@ -1,22 +1,22 @@
 <?php
 
-namespace CmrManagement\Autoresponder\Services;
+namespace ColorrageAR\Autoresponder\Services;
 
-use CmrManagement\Autoresponder\Contracts\Subscribable;
-use CmrManagement\Autoresponder\Models\ListSubscriber;
-use CmrManagement\Autoresponder\Models\MailerList;
+use ColorrageAR\Autoresponder\Contracts\Subscribable;
+use ColorrageAR\Autoresponder\Models\ListSubscriber;
+use ColorrageAR\Autoresponder\Models\MailerList;
 use Illuminate\Support\Collection;
 
-use function CmrManagement\Autoresponder\ar_log;
-use function CmrManagement\Autoresponder\ar_subscriber_model;
-use function CmrManagement\Autoresponder\ar_subscriber_key;
+use function ColorrageAR\Autoresponder\ar_log;
+use function ColorrageAR\Autoresponder\ar_subscriber_model;
+use function ColorrageAR\Autoresponder\ar_subscriber_key;
 
 class ListService
 {
     /**
      * Return all active Subscribable instances for a mailer list.
      *
-     * Static lists: directly enrolled ListSubscriber rows (status = subscribed).
+     * Static lists: directly enrolled ListSubscriber rows (status = active).
      * Dynamic lists: resolved from the subscriber model via filter_config.
      */
     public function getSubscribers(MailerList $list): Collection
@@ -47,7 +47,7 @@ class ListService
                 'name'          => $name,
                 'subscriber_id' => $subscriberId,
                 'locale'        => $locale,
-                'status'        => 'subscribed',
+                'status'        => 'active',
                 'unsubscribed_at' => null,
             ], fn ($v) => $v !== null));
 
@@ -60,7 +60,7 @@ class ListService
             'email'         => $email,
             'name'          => $name,
             'locale'        => $locale,
-            'status'        => 'subscribed',
+            'status'        => 'active',
             'subscribed_at' => now(),
         ]);
     }
@@ -112,35 +112,39 @@ class ListService
         $nameCol = config('autoresponder.subscriber_columns.name', 'name');
         $localeCol = config('autoresponder.subscriber_columns.locale');
 
-        $subscribers = $query->get();
-
         $synced = 0;
+        $emails = [];
 
-        foreach ($subscribers as $model) {
-            ListSubscriber::updateOrCreate(
-                [
-                    'list_id' => $list->id,
-                    'email'   => $model->{$emailCol},
-                ],
-                [
-                    'subscriber_id' => $model->{$keyCol},
-                    'name'          => $model->{$nameCol} ?? null,
-                    'locale'        => $localeCol ? ($model->{$localeCol} ?? null) : null,
-                    'status'        => 'subscribed',
-                    'subscribed_at' => now(),
-                ],
-            );
-            $synced++;
-        }
+        $query->chunk(200, function ($subscribers) use ($list, $emailCol, $keyCol, $nameCol, $localeCol, &$synced, &$emails) {
+            foreach ($subscribers as $model) {
+                ListSubscriber::updateOrCreate(
+                    [
+                        'list_id' => $list->id,
+                        'email'   => $model->{$emailCol},
+                    ],
+                    [
+                        'subscriber_id' => $model->{$keyCol},
+                        'name'          => $model->{$nameCol} ?? null,
+                        'locale'        => $localeCol ? ($model->{$localeCol} ?? null) : null,
+                        'status'        => 'active',
+                        'subscribed_at' => now(),
+                    ],
+                );
+                $emails[] = $model->{$emailCol};
+                $synced++;
+            }
+        });
 
         // Mark removed subscribers
-        ListSubscriber::where('list_id', $list->id)
-            ->where('status', 'subscribed')
-            ->whereNotIn('email', $subscribers->pluck($emailCol))
-            ->update([
-                'status'          => 'unsubscribed',
-                'unsubscribed_at' => now(),
-            ]);
+        if (! empty($emails)) {
+            ListSubscriber::where('list_id', $list->id)
+                ->where('status', 'active')
+                ->whereNotIn('email', $emails)
+                ->update([
+                    'status'          => 'unsubscribed',
+                    'unsubscribed_at' => now(),
+                ]);
+        }
 
         ar_log()->info('Dynamic list synced', [
             'list_id' => $list->id,
@@ -160,7 +164,7 @@ class ListService
         }
 
         return ListSubscriber::where('list_id', $list->id)
-            ->where('status', 'subscribed')
+            ->where('status', 'active')
             ->count();
     }
 
@@ -169,7 +173,7 @@ class ListService
     protected function resolveStaticSubscribers(MailerList $list): Collection
     {
         $rows = ListSubscriber::where('list_id', $list->id)
-            ->where('status', 'subscribed')
+            ->where('status', 'active')
             ->get();
 
         $keyCol    = ar_subscriber_key();
