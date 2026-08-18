@@ -83,13 +83,26 @@ class Campaign extends Model
         return $this;
     }
 
+    /**
+     * Mark the campaign failed, unless it already reached a terminal state.
+     *
+     * Guarded because a late `failed()` callback from a fan-out job can arrive
+     * after the per-email jobs have already completed the campaign; without the
+     * guard a fully sent campaign would be relabelled as failed. Written as a
+     * conditional update so the check and the write are one statement.
+     */
     public function markAsFailed(string $message): self
     {
-        $this->update([
-            'status' => 'failed',
-        ]);
+        static::query()
+            ->whereKey($this->getKey())
+            ->whereNotIn('status', ['sent', 'cancelled'])
+            ->update([
+                'status' => 'failed',
+                'failure_reason' => $message,
+                'updated_at' => Carbon::now(),
+            ]);
 
-        return $this;
+        return $this->refresh();
     }
 
     // ── Computed Attributes ──────────────────────────────────────────

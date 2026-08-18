@@ -32,6 +32,36 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | CSV List Import
+    |--------------------------------------------------------------------------
+    |
+    | Defaults for ListImportService and the autoresponder:import-list command.
+    |
+    | NOTE: 'columns' here are CSV *header names* the importer looks for in an
+    | uploaded file. They are unrelated to 'subscriber_columns' above, which maps
+    | your host application's user table. The two are easy to confuse: change
+    | 'columns' when your spreadsheets use different headings, and
+    | 'subscriber_columns' when your users table uses different column names.
+    |
+    | 'chunk_size' rows are classified and written per batch, at two queries per
+    | batch. 'max_rejected_rows' caps how much per-row rejection detail a report
+    | carries; the counts themselves always stay exact, and a capped report says
+    | so explicitly.
+    |
+    */
+    'import' => [
+        'columns' => [
+            'email' => 'email',
+            'name' => 'name',
+            'locale' => 'locale',
+        ],
+        'delimiter' => ',',
+        'chunk_size' => 500,
+        'max_rejected_rows' => 1000,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Table Prefix
     |--------------------------------------------------------------------------
     |
@@ -159,7 +189,7 @@ return [
     | Custom Token Resolver
     |--------------------------------------------------------------------------
     |
-    | Optional class that implements TokenResolverInterface to handle
+    | Optional class that implements the TokenResolver contract to handle
     | custom token replacement (e.g., ##custom.premium_status##).
     |
     */

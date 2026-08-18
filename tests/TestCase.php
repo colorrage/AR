@@ -3,12 +3,13 @@
 namespace ColorrageAR\Autoresponder\Tests;
 
 use ColorrageAR\Autoresponder\AutoresponderServiceProvider;
+use ColorrageAR\Autoresponder\Tests\Support\CampaignFixtures;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Orchestra\Testbench\Attributes\DefineEnvironment;
-use Orchestra\Testbench\Attributes\DefineDatabaseMigrations;
+use Illuminate\Support\Facades\Mail;
 
 abstract class TestCase extends \Orchestra\Testbench\TestCase
 {
+    use CampaignFixtures;
     use RefreshDatabase;
 
     protected function getPackageProviders($app): array
@@ -18,8 +19,18 @@ abstract class TestCase extends \Orchestra\Testbench\TestCase
         ];
     }
 
-    #[DefineEnvironment]
-    protected function defineTestingEnvironment($app): void
+    /**
+     * Testbench's environment hook.
+     *
+     * Must be named `defineEnvironment` (or `getEnvironmentSetUp`) — Testbench
+     * discovers it by name. The previous code named it `defineTestingEnvironment`
+     * and decorated it with a bare `#[DefineEnvironment]` attribute, which is not
+     * how that attribute works: it belongs on a test method or class and names the
+     * setup method to call. The attribute was therefore inert, and the
+     * `getEnvironmentSetUp()` shim labelled "legacy" was the only hook applying any
+     * of this configuration.
+     */
+    protected function defineEnvironment($app): void
     {
         $app['config']->set('app.key', 'base64:owrHT0vKEG3OIhFvTQ1c45y6av6abAyxNvFtOjKBq98=');
         $app['config']->set('app.url', 'http://localhost');
@@ -58,19 +69,19 @@ abstract class TestCase extends \Orchestra\Testbench\TestCase
 
     protected function defineDatabaseMigrations(): void
     {
-        $migrationsPath = __DIR__ . '/../database/migrations';
-        $this->loadMigrationsFrom($migrationsPath);
-    }
+        // A host `users` table first, so the configured subscriber_model can actually
+        // be created and the host-model recipient branch is testable — which is why
+        // tests/Support/App/Models/User.php implements Subscribable yet was referenced
+        // by nothing. Testbench's loadLaravelMigrations() cannot be used: it shells out
+        // to artisan on a second connection, which never sees SQLite :memory:.
+        $this->loadMigrationsFrom(__DIR__ . '/Support/migrations');
 
-    protected function getEnvironmentSetUp($app): void
-    {
-        // Legacy setup for backward compat with older Testbench
-        $this->defineTestingEnvironment($app);
+        $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
     }
 
     protected function setUp(): void
     {
         parent::setUp();
-        \Illuminate\Support\Facades\Mail::fake();
+        Mail::fake();
     }
 }

@@ -38,7 +38,7 @@ class ProcessScheduledCampaigns extends Command
             if ($dryRun) {
                 $this->line("  [DRY-RUN] Would dispatch campaign #{$campaign->id}: {$campaign->name}");
             } else {
-                SendScheduledCampaign::dispatch($campaign);
+                SendScheduledCampaign::dispatch($campaign->id);
                 $this->line("  Dispatched campaign #{$campaign->id}: {$campaign->name}");
             }
 

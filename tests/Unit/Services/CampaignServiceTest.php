@@ -3,6 +3,7 @@
 namespace ColorrageAR\Autoresponder\Tests\Unit\Services;
 
 use ColorrageAR\Autoresponder\Models\Campaign;
+use ColorrageAR\Autoresponder\Models\Template;
 use ColorrageAR\Autoresponder\Services\CampaignService;
 use ColorrageAR\Autoresponder\Tests\TestCase;
 
@@ -18,8 +19,7 @@ class CampaignServiceTest extends TestCase
 
     public function test_resolve_manual_emails(): void
     {
-        $recipients = $this->service->resolveRecipients([
-            'filter_type' => 'manual_emails',
+        $recipients = $this->service->resolveRecipients('manual_emails', [
             'manual_emails' => 'a@example.com,b@example.com',
         ]);
 
@@ -29,8 +29,7 @@ class CampaignServiceTest extends TestCase
 
     public function test_resolve_empty_mailer_lists(): void
     {
-        $recipients = $this->service->resolveRecipients([
-            'filter_type' => 'mailer_lists',
+        $recipients = $this->service->resolveRecipients('mailer_lists', [
             'selected_lists' => [],
         ]);
 
@@ -39,8 +38,7 @@ class CampaignServiceTest extends TestCase
 
     public function test_resolve_manual_emails_empty(): void
     {
-        $recipients = $this->service->resolveRecipients([
-            'filter_type' => 'manual_emails',
+        $recipients = $this->service->resolveRecipients('manual_emails', [
             'manual_emails' => '',
         ]);
 
@@ -49,9 +47,7 @@ class CampaignServiceTest extends TestCase
 
     public function test_resolve_unknown_filter_type(): void
     {
-        $recipients = $this->service->resolveRecipients([
-            'filter_type' => 'unknown',
-        ]);
+        $recipients = $this->service->resolveRecipients('unknown');
 
         $this->assertCount(0, $recipients);
     }
@@ -98,8 +94,16 @@ class CampaignServiceTest extends TestCase
 
     public function test_send_campaign_with_no_recipients_throws(): void
     {
+        $template = Template::create([
+            'name' => 'T',
+            'subject' => 'S',
+            'body' => 'b',
+            'locale' => 'en',
+        ]);
+
         $campaign = Campaign::create([
             'name' => 'No Recipients',
+            'template_id' => $template->id,
             'status' => 'draft',
         ]);
 

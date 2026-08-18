@@ -6,6 +6,7 @@ use App\Filament\Resources\CampaignResource\Pages;
 use App\Filament\Resources\CampaignResource\RelationManagers\FailedLogsRelationManager;
 use ColorrageAR\Autoresponder\Models\Campaign;
 use ColorrageAR\Autoresponder\Models\Template;
+use ColorrageAR\Autoresponder\Services\CampaignService;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\DateTimePicker;
@@ -13,7 +14,6 @@ use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Toggle;
-use Filament\Forms\Components\Placeholder;
 use Filament\Actions\Action as FormAction;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
@@ -27,7 +27,6 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Actions\DeleteAction;
 use Filament\Notifications\Notification;
-use Illuminate\Support\Facades\DB;
 
 class CampaignResource extends Resource
 {
@@ -76,14 +75,12 @@ class CampaignResource extends Resource
             Section::make('Recipient Selection')
                 ->description('Choose who will receive this email campaign')
                 ->schema([
+                    // Only the filter types CampaignService::resolveRecipients() implements.
+                    // Offering more produces campaigns that resolve nobody.
                     Radio::make('filter_type')
                         ->options([
-                            'admin_only' => '📧 Send to me only (Admin - for testing)',
                             'manual_emails' => '✉️ Manual Email List (comma-separated)',
                             'mailer_lists' => '📋 Mailer Lists (reusable lists)',
-                            'all_paid' => 'All Paid Customers',
-                            'all_unpaid' => 'All Unpaid/Free Customers',
-                            'custom_sql' => 'Custom SQL Query',
                         ])
                         ->required()
                         ->live()
@@ -106,23 +103,31 @@ class CampaignResource extends Resource
                         ->columns(2)
                         ->columnSpanFull(),
 
-                    Textarea::make('custom_sql')
-                        ->rows(6)
-                        ->label('Custom SQL Query')
-                        ->helperText('Must return: id, email, name. Must include LIMIT clause.')
-                        ->visible(fn (Get $get) => $get('filter_type') === 'custom_sql')
-                        ->required(fn (Get $get) => $get('filter_type') === 'custom_sql')
-                        ->columnSpanFull(),
-
                     Toggle::make('filter_params.ignore_unsubscribed')
                         ->label('Ignore Unsubscribed Emails')
                         ->default(true)
                         ->columnSpanFull(),
 
-                    Placeholder::make('preview_recipients')
-                        ->label('Recipient Preview')
-                        ->content('Click the action below to check how many recipients match your selection.')
-                        ->columnSpanFull(),
+                    // Resolves the audience through the same service the send uses, so the
+                    // number shown is the number that will actually be mailed.
+                    FormAction::make('preview_recipients')
+                        ->label('Preview recipient count')
+                        ->icon('heroicon-o-users')
+                        ->color('gray')
+                        ->action(function (Get $get) {
+                            $count = app(CampaignService::class)
+                                ->resolveRecipients($get('filter_type'), [
+                                    'manual_emails' => $get('filter_params.manual_emails') ?? '',
+                                    'selected_lists' => $get('filter_params.selected_lists') ?? [],
+                                    'ignore_unsubscribed' => (bool) ($get('filter_params.ignore_unsubscribed') ?? true),
+                                ])
+                                ->count();
+
+                            Notification::make()
+                                ->title($count === 1 ? '1 recipient matches' : "{$count} recipients match")
+                                ->info()
+                                ->send();
+                        }),
                 ]),
 
             Section::make('UTM Tracking')
@@ -170,21 +175,24 @@ class CampaignResource extends Resource
                     ->sortable()
                     ->label('Campaign Name'),
 
+                // The package's full status set. There is no `queued` and no `completed`
+                // — `sent` is the terminal success state.
                 TextColumn::make('status')
                     ->badge()
                     ->colors([
                         'gray' => 'draft',
-                        'warning' => 'queued',
-                        'info' => 'sending',
-                        'success' => 'completed',
+                        'info' => 'scheduled',
+                        'warning' => 'sending',
+                        'success' => 'sent',
                         'danger' => 'failed',
+                        'secondary' => 'cancelled',
                     ])
                     ->label('Status'),
 
                 TextColumn::make('progress')
                     ->label('Progress')
                     ->getStateUsing(function ($record) {
-                        if ($record->status === 'completed') return '100%';
+                        if ($record->status === 'sent') return '100%';
                         if ($record->total_recipients > 0) {
                             return round(($record->sent_count / $record->total_recipients) * 100, 1) . '%';
                         }
@@ -216,15 +224,87 @@ class CampaignResource extends Resource
                         $duplicate->save();
                         Notification::make()->title('Campaign duplicated')->success()->send();
                     }),
+                // Routed through CampaignService, which owns the template guard, the
+                // atomic claim and send-log pre-creation. Writing a status here instead
+                // is what made this button do nothing for the package's entire history.
                 Action::make('send')
                     ->label('Send Now')
                     ->icon('heroicon-o-paper-airplane')
                     ->color('success')
-                    ->visible(fn ($record) => $record->status === 'draft')
+                    // `failed` is included deliberately: a campaign that failed for a
+                    // fixable reason — no template, empty list — stays retryable, and
+                    // this button is how an operator retries it.
+                    ->visible(fn ($record) => in_array($record->status, ['draft', 'failed'], true))
                     ->requiresConfirmation()
                     ->action(function ($record) {
-                        $record->update(['status' => 'queued', 'started_at' => now()]);
-                        Notification::make()->title('Campaign queued for sending')->success()->send();
+                        try {
+                            $count = app(CampaignService::class)->sendCampaign($record);
+
+                            if ($count === 0) {
+                                Notification::make()
+                                    ->title('Already being sent')
+                                    ->body('Another process is already sending this campaign.')
+                                    ->warning()
+                                    ->send();
+
+                                return;
+                            }
+
+                            Notification::make()
+                                ->title('Campaign sending')
+                                ->body("Queued for {$count} recipient(s).")
+                                ->success()
+                                ->send();
+                        } catch (\Throwable $e) {
+                            // sendCampaign() throws for a missing template, an empty
+                            // audience, or an over-ceiling count. The operator needs the
+                            // reason — reporting success regardless is the old behavior.
+                            Notification::make()
+                                ->title('Campaign could not be sent')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
+
+                // Scheduling was collected on the form but never applied: nothing moved
+                // the campaign to `scheduled`, so process-scheduled-campaigns — which
+                // selects on that status — never saw it.
+                Action::make('schedule')
+                    ->label('Schedule')
+                    ->icon('heroicon-o-clock')
+                    ->color('info')
+                    ->visible(fn ($record) => in_array($record->status, ['draft', 'failed'], true)
+                        && $record->scheduled_at
+                        && $record->scheduled_at->isFuture())
+                    ->requiresConfirmation()
+                    ->action(function ($record) {
+                        try {
+                            app(CampaignService::class)->scheduleCampaign($record, $record->scheduled_at);
+
+                            Notification::make()
+                                ->title('Campaign scheduled')
+                                ->body('Sends at ' . $record->scheduled_at->toDayDateTimeString() . '.')
+                                ->success()
+                                ->send();
+                        } catch (\Throwable $e) {
+                            Notification::make()
+                                ->title('Campaign could not be scheduled')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
+
+                Action::make('cancel')
+                    ->label('Cancel')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('warning')
+                    ->visible(fn ($record) => $record->status === 'scheduled')
+                    ->requiresConfirmation()
+                    ->action(function ($record) {
+                        app(CampaignService::class)->cancelCampaign($record);
+                        Notification::make()->title('Campaign cancelled')->success()->send();
                     }),
                 EditAction::make()
                     ->visible(fn ($record) => $record->status === 'draft'),
@@ -251,4 +331,3 @@ class CampaignResource extends Resource
         ];
     }
 }
-

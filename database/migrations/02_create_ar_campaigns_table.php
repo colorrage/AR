@@ -17,7 +17,8 @@ return new class extends Migration
             $table->unsignedBigInteger('template_id')->nullable();
             $table->string('filter_type')->nullable();
             $table->json('filter_params')->nullable();
-            $table->enum('status', ['draft', 'scheduled', 'queued', 'sending', 'sent', 'failed', 'cancelled'])->default('draft');
+            $table->enum('status', ['draft', 'scheduled', 'sending', 'sent', 'failed', 'cancelled'])->default('draft');
+            $table->text('failure_reason')->nullable();
             $table->timestamp('scheduled_at')->nullable();
             $table->timestamp('started_at')->nullable();
             $table->timestamp('finished_at')->nullable();

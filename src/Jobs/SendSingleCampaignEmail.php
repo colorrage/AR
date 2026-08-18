@@ -31,9 +31,7 @@ class SendSingleCampaignEmail implements ShouldQueue
     public int $timeout = 60;
 
     public function __construct(
-        public int $campaignId,
-        public string $email,
-        public ?int $subscriberId = null,
+        public int $sendLogId,
     ) {
         $this->onQueue(ar_queue());
         $this->tries = config('autoresponder.retry.max_attempts', 3);
@@ -42,76 +40,100 @@ class SendSingleCampaignEmail implements ShouldQueue
 
     public function handle(TokenService $tokenService): void
     {
-        $campaign = Campaign::with('template')->find($this->campaignId);
+        $sendLog = SendLog::find($this->sendLogId);
 
-        if (! $campaign || ! $campaign->template) {
-            ar_log()->warning('SendSingleCampaignEmail: campaign or template not found', [
-                'campaign_id' => $this->campaignId,
-                'email' => $this->email,
+        if (! $sendLog) {
+            ar_log()->warning('SendSingleCampaignEmail: send log not found', [
+                'send_log_id' => $this->sendLogId,
             ]);
 
             return;
         }
 
+        // Only pending rows are sendable. A row stays pending across retries and
+        // becomes terminal exactly once, which is what keeps the completion test
+        // in checkCampaignCompletion() honest.
+        if ($sendLog->status !== 'pending') {
+            ar_log()->info('SendSingleCampaignEmail: send log is not pending, skipping', [
+                'send_log_id' => $sendLog->id,
+                'status' => $sendLog->status,
+            ]);
+
+            return;
+        }
+
+        $campaign = Campaign::with('template')->find($sendLog->campaign_id);
+
+        // CampaignService fails a template-less campaign before any row is created,
+        // so this is a defensive path rather than an expected one.
+        if (! $campaign || ! $campaign->template) {
+            ar_log()->error('SendSingleCampaignEmail: campaign or template missing', [
+                'send_log_id' => $sendLog->id,
+                'campaign_id' => $sendLog->campaign_id,
+            ]);
+
+            $sendLog->markAsFailed('Campaign or template no longer available.');
+            $campaign?->increment('failed_count');
+            $this->checkCampaignCompletion($sendLog->campaign_id);
+
+            return;
+        }
+
         $template = $campaign->template;
-        $subscriber = $this->resolveSubscriber();
+        $subscriber = $this->resolveSubscriber($sendLog);
 
-        $subject = $tokenService->replaceTokens($campaign->subject ?? $template->subject, $subscriber);
-        $body = $tokenService->replaceTokens($template->body_html, $subscriber);
-
+        $subject = $tokenService->replaceTokens($campaign->subject ?: $template->subject, $subscriber);
+        $body = $tokenService->replaceTokens($template->body_html ?? $template->body, $subscriber);
         $body = $this->parseMarkdownToHtml($body);
 
         $language = $template->locale
+            ?? $sendLog->language
             ?? $subscriber->getSubscribableLocale()
             ?? $campaign->default_locale
             ?? 'en';
-
-        $sendLog = SendLog::create([
-            'campaign_id' => $campaign->id,
-            'autoresponder_id' => null,
-            'autoresponder_step_id' => null,
-            'subscriber_id' => $this->subscriberId,
-            'email' => $this->email,
-            'language' => $language,
-            'subject' => $subject,
-            'body_html' => $body,
-            'status' => 'pending',
-            'unsubscribe_token' => bin2hex(random_bytes(32)),
-        ]);
 
         $body = $this->addTrackingPixel($body, $sendLog->id);
         $body = $this->wrapLinksForTracking($body, $sendLog);
         $body = $this->addUnsubscribeLink($body, $sendLog, $language);
 
-        $sendLog->update(['body_html' => $body]);
+        $sendLog->update([
+            'language' => $language,
+            'subject' => $subject,
+            'body_html' => $body,
+        ]);
 
         try {
-            Mail::to($this->email)->send(new AutoresponderMail($subject, $body));
+            Mail::to($sendLog->email)->send(new AutoresponderMail($subject, $body));
 
-            $sendLog->update([
-                'status' => 'sent',
-                'sent_at' => now(),
-            ]);
+            $sendLog->markAsSent();
+            $campaign->increment('sent_count');
 
             $this->checkCampaignCompletion($campaign->id);
 
             ar_log()->info('Campaign email sent', [
                 'campaign_id' => $campaign->id,
-                'email' => $this->email,
+                'email' => $sendLog->email,
                 'send_log_id' => $sendLog->id,
             ]);
         } catch (\Exception $e) {
-            $sendLog->update([
-                'status' => 'failed',
-                'error_message' => Str::limit($e->getMessage(), 500),
-            ]);
+            $message = Str::limit($e->getMessage(), 500);
 
             ar_log()->warning('Campaign email send failed', [
                 'campaign_id' => $campaign->id,
-                'email' => $this->email,
+                'email' => $sendLog->email,
                 'attempt' => $this->attempts(),
                 'error' => $e->getMessage(),
             ]);
+
+            // Leave the row pending while retries remain, so the campaign is not
+            // reported complete before this recipient has actually finished.
+            if ($this->attempts() >= $this->tries) {
+                $sendLog->markAsFailed($message);
+                $campaign->increment('failed_count');
+                $this->checkCampaignCompletion($campaign->id);
+            } else {
+                $sendLog->update(['error_message' => $message]);
+            }
 
             throw $e;
         }
@@ -119,71 +141,98 @@ class SendSingleCampaignEmail implements ShouldQueue
 
     public function failed(\Throwable $exception): void
     {
+        $sendLog = SendLog::find($this->sendLogId);
+
         ar_log()->error('SendSingleCampaignEmail job permanently failed', [
-            'campaign_id' => $this->campaignId,
-            'email' => $this->email,
+            'send_log_id' => $this->sendLogId,
             'error' => $exception->getMessage(),
         ]);
 
-        $this->checkCampaignCompletion($this->campaignId);
+        // Only act if handle() did not already close this row out — otherwise the
+        // failed_count would be incremented twice for one recipient.
+        if (! $sendLog || $sendLog->status !== 'pending') {
+            return;
+        }
+
+        $sendLog->markAsFailed(Str::limit($exception->getMessage(), 500));
+        Campaign::where('id', $sendLog->campaign_id)->increment('failed_count');
+
+        $this->checkCampaignCompletion($sendLog->campaign_id);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────
 
     /**
-     * Check if all campaign emails have been processed and update status.
+     * Close the campaign out once no pending rows remain for it.
+     *
+     * Sound because CampaignService pre-creates every row before the first send
+     * job runs: a zero pending count means finished, not "not started yet".
+     * Counts are recomputed from the log rows rather than trusted from the
+     * running increments, so a lost increment self-heals.
      */
-    protected function checkCampaignCompletion(int $campaignId): void
+    protected function checkCampaignCompletion(?int $campaignId): void
     {
-        $pendingCount = SendLog::where('campaign_id', $campaignId)
+        if (! $campaignId) {
+            return;
+        }
+
+        $pending = SendLog::where('campaign_id', $campaignId)
             ->where('status', 'pending')
             ->count();
 
-        if ($pendingCount === 0) {
-            $sentCount = SendLog::where('campaign_id', $campaignId)
-                ->where('status', 'sent')
-                ->count();
+        if ($pending > 0) {
+            return;
+        }
 
-            $failedCount = SendLog::where('campaign_id', $campaignId)
-                ->where('status', 'failed')
-                ->count();
+        $sent = SendLog::where('campaign_id', $campaignId)->where('status', 'sent')->count();
+        $failed = SendLog::where('campaign_id', $campaignId)->where('status', 'failed')->count();
 
-            $status = $failedCount > 0 && $sentCount === 0 ? 'failed' : 'sent';
+        $status = $sent > 0 ? 'sent' : 'failed';
 
-            Campaign::where('id', $campaignId)
-                ->where('status', 'sending')
-                ->update([
-                    'status' => $status,
-                    'sent_at' => now(),
-                    'sent_count' => $sentCount,
-                    'failed_count' => $failedCount,
-                ]);
+        // Conditional update so only the first worker to observe completion
+        // transitions the campaign. Must stay a single statement.
+        $closed = Campaign::query()
+            ->where('id', $campaignId)
+            ->where('status', 'sending')
+            ->update([
+                'status' => $status,
+                'sent_at' => now(),
+                'finished_at' => now(),
+                'sent_count' => $sent,
+                'failed_count' => $failed,
+                'updated_at' => now(),
+            ]);
 
+        if ($closed > 0) {
             ar_log()->info('Campaign completed', [
                 'campaign_id' => $campaignId,
                 'status' => $status,
-                'sent' => $sentCount,
-                'failed' => $failedCount,
+                'sent' => $sent,
+                'failed' => $failed,
             ]);
         }
     }
 
-    protected function resolveSubscriber(): Subscribable
+    protected function resolveSubscriber(SendLog $sendLog): Subscribable
     {
-        if ($this->subscriberId) {
+        if ($sendLog->subscriber_id) {
             $modelClass = ar_subscriber_model();
-            $subscriber = $modelClass::find($this->subscriberId);
+            $subscriber = $modelClass::find($sendLog->subscriber_id);
 
             if ($subscriber instanceof Subscribable) {
                 return $subscriber;
             }
         }
 
-        $email = $this->email;
+        $email = $sendLog->email;
+        $locale = $sendLog->language;
 
-        return new class($email) implements Subscribable
+        return new class ($email, $locale) implements Subscribable
         {
-            public function __construct(private readonly string $email) {}
+            public function __construct(
+                private readonly string $email,
+                private readonly ?string $locale,
+            ) {}
 
             public function getSubscribableId(): int|string
             {
@@ -202,66 +251,8 @@ class SendSingleCampaignEmail implements ShouldQueue
 
             public function getSubscribableLocale(): ?string
             {
-                return null;
+                return $this->locale;
             }
         };
-    }
-
-    protected function wrapLinksForTracking(string $body, SendLog $sendLog): string
-    {
-        return preg_replace_callback(
-            '/<a\s+([^>]*?)href=["\']([^"\']+)["\']([^>]*?)>/i',
-            function ($matches) use ($sendLog) {
-                $originalUrl = $matches[2];
-
-                $skipPatterns = ['unsubscribe', 'track/open', 'track/click', 'mailto:', 'tel:', '#'];
-                foreach ($skipPatterns as $pattern) {
-                    if (str_contains($originalUrl, $pattern) || $originalUrl === $pattern) {
-                        return $matches[0];
-                    }
-                }
-
-                $trackingUrl = route('autoresponder.track.click', [
-                    'id' => $sendLog->id,
-                    'url' => base64_encode($originalUrl),
-                ]);
-
-                return "<a {$matches[1]}href=\"{$trackingUrl}\"{$matches[3]}>";
-            },
-            $body
-        );
-    }
-
-    protected function addUnsubscribeLink(string $body, SendLog $sendLog, string $language): string
-    {
-        $unsubscribeUrl = route('autoresponder.unsubscribe', ['token' => $sendLog->unsubscribe_token]);
-        $translations = config('autoresponder.unsubscribe_translations', []);
-        $text = $translations[$language] ?? $translations['en'] ?? ['main' => 'To unsubscribe', 'link' => 'click here'];
-
-        $footer = <<<HTML
-            <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 12px; color: #6b7280;">
-                <p>{$text['main']} <a href="{$unsubscribeUrl}" style="color: #667eea; text-decoration: underline;">{$text['link']}</a>.</p>
-            </div>
-            HTML;
-
-        return $body . $footer;
-    }
-
-    protected function parseMarkdownToHtml(string $content): string
-    {
-        if (str_contains($content, '<html') || str_contains($content, '<!DOCTYPE')) {
-            return $content;
-        }
-
-        $hasMarkdown = preg_match('/\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\)|^#+\s|^-\s|\n\n/m', $content);
-
-        if (! $hasMarkdown) {
-            return nl2br($content);
-        }
-
-        return Str::markdown($content, [
-            'html_input' => 'allow',
-            'allow_unsafe_links' => false,
-        ]);
     }
 }

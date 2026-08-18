@@ -8,11 +8,13 @@ use ColorrageAR\Autoresponder\Services\AutoresponderService;
 use ColorrageAR\Autoresponder\Services\CampaignService;
 use ColorrageAR\Autoresponder\Services\TokenService;
 use ColorrageAR\Autoresponder\Services\ListService;
+use ColorrageAR\Autoresponder\Services\ListImportService;
 use ColorrageAR\Autoresponder\Services\AnalyticsService;
 use ColorrageAR\Autoresponder\Commands\ProcessEnrollments;
 use ColorrageAR\Autoresponder\Commands\CheckTriggers;
 use ColorrageAR\Autoresponder\Commands\ProcessScheduledCampaigns;
 use ColorrageAR\Autoresponder\Commands\ImportTemplates;
+use ColorrageAR\Autoresponder\Commands\ImportList;
 use ColorrageAR\Autoresponder\Listeners\TriggerListener;
 
 class AutoresponderServiceProvider extends ServiceProvider
@@ -29,6 +31,7 @@ class AutoresponderServiceProvider extends ServiceProvider
         $this->app->singleton(CampaignService::class);
         $this->app->singleton(TokenService::class);
         $this->app->singleton(ListService::class);
+        $this->app->singleton(ListImportService::class);
         $this->app->singleton(AnalyticsService::class);
     }
 
@@ -46,6 +49,7 @@ class AutoresponderServiceProvider extends ServiceProvider
                 CheckTriggers::class,
                 ProcessScheduledCampaigns::class,
                 ImportTemplates::class,
+                ImportList::class,
                 \ColorrageAR\Autoresponder\Commands\InstallUICommand::class,
             ]);
 

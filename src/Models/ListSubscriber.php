@@ -22,6 +22,7 @@ class ListSubscriber extends Model
         return [
             'subscribed_at' => 'datetime',
             'unsubscribed_at' => 'datetime',
+            'imported_at' => 'datetime',
         ];
     }
 

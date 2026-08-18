@@ -13,13 +13,21 @@ use Illuminate\Queue\SerializesModels;
 use function ColorrageAR\Autoresponder\ar_log;
 use function ColorrageAR\Autoresponder\ar_queue;
 
+/**
+ * Hands a due scheduled campaign to CampaignService.
+ *
+ * Deliberately performs no claim of its own. Exactly-once comes from the atomic
+ * claim inside CampaignService::sendCampaign(); a claim here as well would move
+ * the campaign to `sending` first, causing the service's claim to match zero rows
+ * and return early — leaving the campaign stuck in `sending` having sent nothing.
+ */
 class SendScheduledCampaign implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 1;
 
-    public int $timeout = 60;
+    public int $timeout = 120;
 
     public function __construct(
         public int $campaignId,
@@ -29,38 +37,40 @@ class SendScheduledCampaign implements ShouldQueue
 
     public function handle(CampaignService $campaignService): void
     {
-        $affected = Campaign::where('id', $this->campaignId)
-            ->where('status', 'scheduled')
-            ->where(function ($q) {
-                $q->whereNull('scheduled_at')
-                    ->orWhere('scheduled_at', '<=', now());
-            })
-            ->update(['status' => 'sending']);
+        $campaign = Campaign::find($this->campaignId);
 
-        if ($affected === 0) {
-            $campaign = Campaign::find($this->campaignId);
-
-            if (! $campaign) {
-                ar_log()->warning('SendScheduledCampaign: campaign not found', [
-                    'campaign_id' => $this->campaignId,
-                ]);
-
-                return;
-            }
-
-            ar_log()->info('SendScheduledCampaign: campaign already dispatched or not ready', [
+        if (! $campaign) {
+            ar_log()->warning('SendScheduledCampaign: campaign not found', [
                 'campaign_id' => $this->campaignId,
+            ]);
+
+            return;
+        }
+
+        // Guard against a stale job sitting on the queue — not the exactly-once mechanism.
+        if ($campaign->status !== 'scheduled') {
+            ar_log()->info('SendScheduledCampaign: campaign no longer scheduled', [
+                'campaign_id' => $campaign->id,
                 'status' => $campaign->status,
             ]);
 
             return;
         }
 
-        ar_log()->info('SendScheduledCampaign: launching campaign batch', [
-            'campaign_id' => $this->campaignId,
+        if ($campaign->scheduled_at && $campaign->scheduled_at->isFuture()) {
+            ar_log()->info('SendScheduledCampaign: campaign is not due yet', [
+                'campaign_id' => $campaign->id,
+                'scheduled_at' => $campaign->scheduled_at->toDateTimeString(),
+            ]);
+
+            return;
+        }
+
+        ar_log()->info('SendScheduledCampaign: handing campaign to CampaignService', [
+            'campaign_id' => $campaign->id,
         ]);
 
-        SendCampaignBatch::dispatch($this->campaignId);
+        $campaignService->sendCampaign($campaign);
     }
 
     public function failed(\Throwable $exception): void
@@ -70,7 +80,8 @@ class SendScheduledCampaign implements ShouldQueue
             'error' => $exception->getMessage(),
         ]);
 
-        $campaign = Campaign::find($this->campaignId);
-        $campaign?->update(['status' => 'failed']);
+        Campaign::find($this->campaignId)?->markAsFailed(
+            'Scheduled dispatch failed: ' . $exception->getMessage()
+        );
     }
 }
